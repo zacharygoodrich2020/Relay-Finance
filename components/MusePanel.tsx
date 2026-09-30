@@ -3,6 +3,8 @@
 import React, { useMemo, useState } from "react";
 import { useFinancialActions, useFinancialState } from "@/context";
 import { createMuseFinancePort } from "@/services/muse";
+import { routeMuseMessage } from "@/services/muse/client";
+import type { MuseIntent } from "@/services/muse/intent";
 
 type Message = { role: "user" | "muse"; text: string };
 
@@ -41,6 +43,7 @@ export default function MusePanel() {
   const actions = useFinancialActions();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
+  const [pendingIntent, setPendingIntent] = useState<MuseIntent | null>(null);
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "muse",
@@ -58,6 +61,76 @@ export default function MusePanel() {
       }),
     [state.userPlan, actions.addIncome, actions.addExpense, actions.updateCurrentBalance]
   );
+
+  async function executeIntent(intent: MuseIntent): Promise<string> {
+    const snapshot = await port.getFinancialSnapshot();
+
+    switch (intent.type) {
+      case "answer":
+        return intent.message;
+      case "get_balance":
+        return `Your current Relay balance is ${money(snapshot.currentBalance)}.`;
+      case "get_lowest_balance": {
+        if (!snapshot.forecast.length) return "There isn’t a saved forecast yet.";
+        const lowest = snapshot.forecast.reduce((a, b) =>
+          a.projectedBalance < b.projectedBalance ? a : b
+        );
+        return `Your lowest saved projected balance is ${money(lowest.projectedBalance)} in ${lowest.month}.`;
+      }
+      case "run_scenario": {
+        const result: any = await port.runScenario({
+          adjustments: [{
+            label: intent.label || "Muse what-if",
+            amount: intent.amount,
+            date: intent.date,
+            kind: "expense",
+          }],
+        });
+        return `Scenario only: a ${money(intent.amount)} expense on ${intent.date} gives a projected final balance of ${money(result.summary.finalBalance)} and low point of ${money(result.summary.lowestBalance)}. Nothing was saved.`;
+      }
+      case "set_balance":
+      case "add_income":
+      case "add_expense":
+        setPendingIntent(intent);
+        return `I can make that change. Review it below and confirm before I touch your Relay data.`;
+      case "get_cash_flow":
+        return respond("monthly cash flow");
+    }
+  }
+
+  async function confirmPending() {
+    const intent = pendingIntent;
+    if (!intent) return;
+    try {
+      if (intent.type === "set_balance") {
+        await port.setCurrentBalance(intent.amount);
+      } else if (intent.type === "add_income") {
+        await port.addIncome({
+          name: intent.name,
+          amount: intent.amount,
+          frequency: intent.frequency as any,
+          startDate: intent.startDate,
+          isActive: true,
+        });
+      } else if (intent.type === "add_expense") {
+        await port.addExpense({
+          name: intent.name,
+          amount: intent.amount,
+          category: "miscellaneous" as any,
+          dueDate: intent.dueDate,
+          recurring: intent.recurring,
+          frequency: intent.frequency as any,
+          priority: "medium" as any,
+          isActive: true,
+        });
+      }
+      setMessages((m) => [...m, { role: "muse", text: "Confirmed — Relay has applied that change." }]);
+    } catch (error) {
+      setMessages((m) => [...m, { role: "muse", text: error instanceof Error ? error.message : "That change failed." }]);
+    } finally {
+      setPendingIntent(null);
+    }
+  }
 
   async function respond(raw: string): Promise<string> {
     const text = raw.trim().toLowerCase();
@@ -116,7 +189,12 @@ export default function MusePanel() {
       return `If you add a ${money(amount)} expense on ${date}, Relay projects a final balance of ${money(summary.finalBalance)} over this forecast window, with a low point of ${money(summary.lowestBalance)}. This is a scenario only — I did not change your saved plan.`;
     }
 
-    return "I can currently answer: “What’s my balance?”, “What’s my monthly cash flow?”, “What’s my lowest projected balance?”, or “What if I spend $300 on 10/15?” More natural-language tools are coming next.";
+    try {
+      const routed = await routeMuseMessage(raw);
+      return executeIntent(routed.intent);
+    } catch {
+      return "I couldn’t interpret that yet. Try asking about your balance, cash flow, forecast low point, or a what-if expense.";
+    }
   }
 
   async function send() {
@@ -176,6 +254,17 @@ export default function MusePanel() {
                 </div>
               ))}
             </div>
+
+              {pendingIntent && (
+                <div className="mx-4 mb-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
+                  <div className="font-semibold">Confirm change</div>
+                  <div className="mt-1 break-words text-xs opacity-80">{JSON.stringify(pendingIntent)}</div>
+                  <div className="mt-3 flex gap-2">
+                    <button onClick={() => void confirmPending()} className="rounded-lg bg-gray-950 px-3 py-2 text-xs font-semibold text-white dark:bg-white dark:text-gray-950">Confirm</button>
+                    <button onClick={() => setPendingIntent(null)} className="rounded-lg border border-current px-3 py-2 text-xs font-semibold">Cancel</button>
+                  </div>
+                </div>
+              ))}
 
             <div className="border-t border-gray-200 p-3 dark:border-gray-700">
               <div className="flex gap-2">
