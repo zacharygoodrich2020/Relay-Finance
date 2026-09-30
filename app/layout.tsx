@@ -8,6 +8,7 @@ import { LanguageProvider } from "@/context/LanguageContext";
 import ThemeToggle from "@/components/ThemeToggle";
 import CurrencySelector from "@/components/CurrencySelector";
 import Navigation from "@/components/Navigation";
+import MusePanel from "@/components/MusePanel";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,7 +21,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Finance Planner - Take Control of Your Financial Future",
+  title: "Relay Finance",
   description:
     "A comprehensive financial planning tool to manage income, expenses, goals, and forecast your financial future with personalized insights and recommendations.",
   keywords: [
@@ -53,7 +54,7 @@ export default function RootLayout({
                       <div className="flex justify-between items-center py-4">
                         <div className="flex items-center">
                           <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                            Finance Planner
+                            Relay Finance
                           </h1>
                         </div>
                         <div className="flex items-center space-x-8">
@@ -92,6 +93,8 @@ export default function RootLayout({
                   <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
                     {children}
                   </main>
+
+                  <MusePanel />
 
                   <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
