@@ -5,6 +5,8 @@
  * including state shape, actions, and reducer interfaces.
  */
 
+import type { FinancialRepository } from "../services/finance/FinancialRepository";
+
 import {
   Income,
   Expense,
@@ -426,4 +428,6 @@ export type AsyncActionCreator<T> = (
 export interface FinancialProviderProps {
   children: React.ReactNode;
   initialState?: Partial<FinancialState>;
+  /** Optional persistence adapter. Defaults to the existing browser localStorage repository. */
+  repository?: FinancialRepository;
 }
