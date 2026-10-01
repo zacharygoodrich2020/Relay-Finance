@@ -23,6 +23,7 @@ import {
 import { enhancedFinancialReducer } from "./reducer";
 import { createFreshInitialState, mergeWithInitialState } from "./initialState";
 import * as actions from "./actions";
+import { localStorageRepository } from "../services/finance";
 import {
   CreateIncomeInput,
   CreateExpenseInput,
@@ -72,6 +73,7 @@ export function useFinancialContext(): FinancialContextValue {
 export function FinancialProvider({
   children,
   initialState,
+  repository = localStorageRepository,
 }: FinancialProviderProps) {
   // Initialize state with provided initial state or fresh state
   const [state, dispatch] = useReducer(
@@ -95,9 +97,7 @@ export function FinancialProvider({
           dispatch(actions.setLoading(true));
           dispatch(actions.clearError("generalError"));
 
-          // Import storage function dynamically to avoid SSR issues
-          const { loadUserPlan: loadFromStorage } = await import("./storage");
-          const loadedPlan = await loadFromStorage();
+          const loadedPlan = await repository.loadPlan();
 
           if (loadedPlan) {
             dispatch(actions.loadSuccess(loadedPlan));
@@ -113,7 +113,7 @@ export function FinancialProvider({
 
       loadData();
     }
-  }, []); // Empty dependency array - only run on mount
+  }, [repository]);
 
   // Auto-save user plan when data changes
   useEffect(() => {
@@ -135,8 +135,7 @@ export function FinancialProvider({
     ) {
       const saveData = async () => {
         try {
-          const { saveUserPlan: saveToStorage } = await import("./storage");
-          const savedPlan = await saveToStorage(state.userPlan);
+          const savedPlan = await repository.savePlan(state.userPlan);
 
           // If the ID changed (first save), update the state
           if (savedPlan.id !== state.userPlan.id) {
@@ -159,6 +158,7 @@ export function FinancialProvider({
     state.hasUnsavedChanges,
     state.loading.isLoading,
     state.loading.isSaving,
+    repository,
   ]);
 
   // Helper function to generate unique IDs
@@ -471,8 +471,7 @@ export function FinancialProvider({
       dispatch(actions.clearError("generalError"));
 
       // Import storage function dynamically to avoid SSR issues
-      const { saveUserPlan: saveToStorage } = await import("./storage");
-      const savedPlan = await saveToStorage(state.userPlan);
+      const savedPlan = await repository.savePlan(state.userPlan);
 
       // If the ID changed (first save), update the state
       if (savedPlan.id !== state.userPlan.id) {
@@ -486,16 +485,14 @@ export function FinancialProvider({
       dispatch(actions.saveError(errorMessage));
       throw error;
     }
-  }, [state.userPlan]);
+  }, [state.userPlan, repository]);
 
   const loadUserPlan = useCallback(async (): Promise<void> => {
     try {
       dispatch(actions.setLoading(true));
       dispatch(actions.clearError("generalError"));
 
-      // Import storage function dynamically to avoid SSR issues
-      const { loadUserPlan: loadFromStorage } = await import("./storage");
-      const loadedPlan = await loadFromStorage();
+      const loadedPlan = await repository.loadPlan();
 
       if (loadedPlan) {
         dispatch(actions.loadSuccess(loadedPlan));
@@ -508,7 +505,7 @@ export function FinancialProvider({
       dispatch(actions.loadError(errorMessage));
       throw error;
     }
-  }, []);
+  }, [repository]);
 
   const resetAll = useCallback((): void => {
     dispatch(actions.resetState());
