@@ -1,3 +1,4 @@
+import type { ForecastResult } from "../../utils/forecastCalculator";
 import {
   CreateExpenseInput,
   CreateIncomeInput,
@@ -44,7 +45,7 @@ export interface MuseFinancePort {
   addIncome(input: CreateIncomeInput): Promise<void>;
   addExpense(input: CreateExpenseInput): Promise<void>;
   setCurrentBalance(amount: number): Promise<void>;
-  runScenario(input: ScenarioRequest): Promise<unknown>;
+  runScenario(input: ScenarioRequest): Promise<ForecastResult>;
 }
 
 /**

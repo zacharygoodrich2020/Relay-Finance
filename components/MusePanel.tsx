@@ -5,6 +5,7 @@ import { useFinancialActions, useFinancialState } from "@/context";
 import { createMuseFinancePort } from "@/services/muse";
 import { routeMuseMessage } from "@/services/muse/client";
 import type { MuseIntent } from "@/services/muse/intent";
+import { ExpenseCategory, Frequency, Priority } from "@/types";
 
 type Message = { role: "user" | "muse"; text: string };
 
@@ -78,7 +79,7 @@ export default function MusePanel() {
         return `Your lowest saved projected balance is ${money(lowest.projectedBalance)} in ${lowest.month}.`;
       }
       case "run_scenario": {
-        const result: any = await port.runScenario({
+        const result = await port.runScenario({
           adjustments: [{
             label: intent.label || "Muse what-if",
             amount: intent.amount,
@@ -108,7 +109,7 @@ export default function MusePanel() {
         await port.addIncome({
           name: intent.name,
           amount: intent.amount,
-          frequency: intent.frequency as any,
+          frequency: intent.frequency as Frequency,
           startDate: intent.startDate,
           isActive: true,
         });
@@ -116,11 +117,11 @@ export default function MusePanel() {
         await port.addExpense({
           name: intent.name,
           amount: intent.amount,
-          category: "miscellaneous" as any,
+          category: ExpenseCategory.MISCELLANEOUS,
           dueDate: intent.dueDate,
           recurring: intent.recurring,
-          frequency: intent.frequency as any,
-          priority: "medium" as any,
+          frequency: intent.frequency as Frequency | undefined,
+          priority: Priority.MEDIUM,
           isActive: true,
         });
       }
@@ -182,7 +183,7 @@ export default function MusePanel() {
         return "Give me an amount, like: “What if I spend $300 on 10/15?”";
       }
       const date = parseDate(text) ?? new Date().toISOString().slice(0, 10);
-      const result: any = await port.runScenario({
+      const result = await port.runScenario({
         adjustments: [{ label: "Muse what-if purchase", amount, date, kind: "expense" }],
       });
       const summary = result.summary;
@@ -264,7 +265,7 @@ export default function MusePanel() {
                     <button onClick={() => setPendingIntent(null)} className="rounded-lg border border-current px-3 py-2 text-xs font-semibold">Cancel</button>
                   </div>
                 </div>
-              ))}
+              )}
 
             <div className="border-t border-gray-200 p-3 dark:border-gray-700">
               <div className="flex gap-2">

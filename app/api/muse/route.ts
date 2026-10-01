@@ -21,8 +21,8 @@ Rules:
 - A hypothetical spend is run_scenario, never add_expense.
 - Return JSON only: {"intent":{...}}.`;
 
-function validIntent(value: any): value is MuseIntent {
-  if (!value || typeof value !== "object" || typeof value.type !== "string") return false;
+function validIntent(value: unknown): value is MuseIntent {
+  if (!value || typeof value !== "object" || !("type" in value) || typeof value.type !== "string") return false;
   const allowed = new Set([
     "answer",
     "get_balance",
